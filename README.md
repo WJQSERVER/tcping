@@ -35,3 +35,7 @@ Go实现的简单tcping
 ```bash
 wget -O tcping.sh https://raw.githubusercontent.com/WJQSERVER/tcping/main/install.sh && chmod +x tcping.sh &&./tcping.sh
 ```
+
+## 演示
+
+![tcping演示](https://raw.githubusercontent.com/WJQSERVER/tcping/main/example.png)
