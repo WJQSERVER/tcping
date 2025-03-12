@@ -34,7 +34,6 @@ var (
 	parallel  int
 	jsonOut   string
 	colorMode bool
-	ipv6      bool
 	showTTL   bool
 )
 
@@ -122,7 +121,6 @@ func parseFlags() {
 	flag.IntVar(&parallel, "P", 1, "并发连接数 (1-64)")
 	flag.StringVar(&jsonOut, "o", "", "JSON输出文件路径")
 	flag.BoolVar(&colorMode, "C", false, "启用彩色输出")
-	flag.BoolVar(&ipv6, "6", false, "强制使用IPv6")
 	flag.BoolVar(&showTTL, "ttl", false, "显示TTL值 (仅Unix系统)")
 
 	// 自定义帮助信息
@@ -185,33 +183,20 @@ func parseFlags() {
 func worker(target string, stats *Statistics, seq int) {
 	// 记录开始时间
 	start := time.Now()
-	// 设置网络类型为IPv4 TCP
-	networkType := "tcp4"
-	// 如果启用IPv6，则设置网络类型为IPv6 TCP
-	if ipv6 {
-		networkType = "tcp6"
-	}
+	networkType := "tcp" // 默认直接使用 tcp，让 Go 自动选择
+	dialTarget := target
 
-	// 尝试连接目标地址，设置超时时间
-	conn, err := net.DialTimeout(networkType, target, timeout)
-	// 计算连接所花费的时间
+	conn, err := net.DialTimeout(networkType, dialTarget, timeout)
 	duration := time.Since(start)
 
-	// 增加总连接数统计
 	stats.Total.Add(1)
-
-	// 如果连接失败，增加失败连接数统计，并打印结果
 	if err != nil {
 		stats.Failed.Add(1)
 		printResult(stats, seq, duration, err, 0)
 		return
 	}
-	// 确保连接在函数结束时被关闭
 	defer conn.Close()
-
-	// 初始化TTL值
 	ttl := 0
-	// 如果需要显示TTL，则获取并更新TTL统计信息
 	if showTTL {
 		if t, err := getTTL(conn); err == nil {
 			ttl = t
@@ -220,19 +205,12 @@ func worker(target string, stats *Statistics, seq int) {
 			stats.mutex.Unlock()
 		}
 	}
-
-	// 将连接时延添加到时延列表中
 	stats.mutex.Lock()
 	stats.Latencies = append(stats.Latencies, duration)
 	stats.mutex.Unlock()
-
-	// 增加成功连接数统计，并累加时延
 	stats.Success.Add(1)
 	stats.Sum.Add(int64(duration))
-
-	// 更新最小和最大时延
 	updateMinMax(stats, duration)
-	// 打印结果
 	printResult(stats, seq, duration, nil, ttl)
 }
 
